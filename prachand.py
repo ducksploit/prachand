@@ -138,6 +138,8 @@ def exit_program():
     confirm_exit = input("Are you sure you want to exit the program [y/n]: ")
     if confirm_exit.lower() == "y" or confirm_exit.lower() == "yes":
         exit(0)
+    elif confirm_exit.lower() == "n" or confirm_exit.lower() == "no":
+        print()
     else:
         exit_program()
 
