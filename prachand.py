@@ -131,7 +131,7 @@ def handle_connection(conn, conn_id):
 
                 response = ''.join(response)
                 print(response)
-    except ConnectionAbortedError:
+    except Exception:
         connections[conn_id][0] = False
         connections[conn_id][1] = False
 
